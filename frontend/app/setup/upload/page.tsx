@@ -38,7 +38,7 @@ export default function UploadSetupPage() {
     setRiskItems([]);
     setDismissedRisks(new Set());
     try {
-      const riskRes = await fetch("${process.env.NEXT_PUBLIC_API_URL}/analyze-experiment-design", {
+      const riskRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analyze-experiment-design`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,7 +68,7 @@ export default function UploadSetupPage() {
       setStatus("Reading protocol...");
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/setup/upload", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/setup/upload`, {
         method: "POST",
         body: formData,
       });

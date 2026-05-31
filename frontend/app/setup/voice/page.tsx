@@ -68,7 +68,7 @@ export default function VoiceSetupPage() {
       setStatus("Transcribing...");
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
-      const transcribeRes = await fetch("${process.env.NEXT_PUBLIC_API_URL}/transcribe", {
+      const transcribeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transcribe`, {
         method: "POST",
         body: formData,
       });
@@ -77,7 +77,7 @@ export default function VoiceSetupPage() {
       setMessages(prev => [...prev, { role: "user", content: text }]);
       setStatus("Thinking...");
 
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/setup/chat", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/setup/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, conversation_history: history })
@@ -121,7 +121,7 @@ export default function VoiceSetupPage() {
     setRiskItems([]);
     setDismissedRisks(new Set());
     try {
-      const riskRes = await fetch("${process.env.NEXT_PUBLIC_API_URL}/analyze-experiment-design", {
+      const riskRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analyze-experiment-design`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

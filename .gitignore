@@ -1,18 +1,17 @@
-# Dependencies
-node_modules/
-venv/
-
 # Environment files
 .env
 .env.local
-.env*.local
+*.env
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
 
 # Build output
 .next/
-__pycache__/
-*.pyc
-*.pyo
+out/
 
-# System
+# Misc
 .DS_Store
-*.log

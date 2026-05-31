@@ -15,7 +15,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Lab Copilot",
+  title: "Lab Design Litmus",
   description: "Your AI-powered experiment assistant",
 };
 

@@ -34,7 +34,7 @@ export default function SetupPage() {
   const startDirectly = async () => {
     setLoading(true);
     try {
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/setup/direct", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/setup/direct`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

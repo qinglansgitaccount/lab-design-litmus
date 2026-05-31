@@ -45,7 +45,7 @@ export default function RiskChat({ protocolText, riskItems, experimentId, onProt
     setLoading(true);
 
     try {
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/risk/chat", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/risk/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,7 +96,7 @@ export default function RiskChat({ protocolText, riskItems, experimentId, onProt
         try {
           const formData = new FormData();
           formData.append("audio", blob, "recording.webm");
-          const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/transcribe", {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transcribe`, {
             method: "POST",
             body: formData,
           });
