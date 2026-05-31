@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from anthropic import Anthropic
@@ -12,7 +12,6 @@ import xmltodict
 import asyncio
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, HTTPException, UploadFile, File
 
 load_dotenv(override=False)
 
@@ -26,26 +25,28 @@ def get_anthropic():
 
 def get_deepseek():
     return DeepSeekClient(
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
-        base_url="https://api.deepseek.com"
+        api_key=os.getenv("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com"
     )
 
 
 # ── Step 1: Extract search queries ──────────────────────────
 
+
 def extract_search_queries(experiment_description: str) -> list[str]:
     response = get_deepseek().chat.completions.create(
         model="deepseek-chat",
         max_tokens=300,
-        messages=[{
-            "role": "user",
-            "content": f"""From this experiment description, extract 3-5 specific search queries
+        messages=[
+            {
+                "role": "user",
+                "content": f"""From this experiment description, extract 3-5 specific search queries
 for finding relevant scientific literature about potential risks and best practices.
 Focus on: experimental method, key parameters, materials, safety-critical steps.
 Return ONLY a JSON array of strings. No explanation, no markdown.
 
-Experiment: {experiment_description}"""
-        }]
+Experiment: {experiment_description}""",
+            }
+        ],
     )
     raw = (response.choices[0].message.content or "").strip()
     if not raw:
@@ -53,7 +54,7 @@ Experiment: {experiment_description}"""
     print(f"[risk_flag] extract_search_queries raw: {repr(raw[:200])}")
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    match = re.search(r'\[.*?\]', raw, re.DOTALL)
+    match = re.search(r"\[.*?\]", raw, re.DOTALL)
     if match:
         return json.loads(match.group())
     return json.loads(raw)
@@ -61,13 +62,14 @@ Experiment: {experiment_description}"""
 
 # ── Step 2a: Semantic Scholar ────────────────────────────────
 
+
 def search_semantic_scholar(query: str, limit: int = 5) -> list[dict]:
     try:
         url = "https://api.semanticscholar.org/graph/v1/paper/search"
         params = {
             "query": query,
             "limit": limit,
-            "fields": "title,abstract,authors,year,externalIds,openAccessPdf"
+            "fields": "title,abstract,authors,year,externalIds,openAccessPdf",
         }
         headers = {}
         api_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
@@ -77,13 +79,17 @@ def search_semantic_scholar(query: str, limit: int = 5) -> list[dict]:
         res = requests.get(url, params=params, headers=headers, timeout=10)
         papers = res.json().get("data", [])
 
-        return [{
-            "title": p.get("title", ""),
-            "abstract": p.get("abstract", ""),
-            "year": p.get("year", ""),
-            "doi": p.get("externalIds", {}).get("DOI", ""),
-            "source": "Semantic Scholar"
-        } for p in papers if p.get("abstract")]
+        return [
+            {
+                "title": p.get("title", ""),
+                "abstract": p.get("abstract", ""),
+                "year": p.get("year", ""),
+                "doi": p.get("externalIds", {}).get("DOI", ""),
+                "source": "Semantic Scholar",
+            }
+            for p in papers
+            if p.get("abstract")
+        ]
 
     except Exception as e:
         print(f"[risk_flag] Semantic Scholar error: {e}")
@@ -92,12 +98,13 @@ def search_semantic_scholar(query: str, limit: int = 5) -> list[dict]:
 
 # ── Step 2b: PubMed ──────────────────────────────────────────
 
+
 def search_pubmed(query: str, limit: int = 5) -> list[dict]:
     try:
         search_res = requests.get(
             "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
             params={"db": "pubmed", "term": query, "retmax": limit, "retmode": "json"},
-            timeout=10
+            timeout=10,
         ).json()
         pmids = search_res["esearchresult"]["idlist"]
         if not pmids:
@@ -106,7 +113,7 @@ def search_pubmed(query: str, limit: int = 5) -> list[dict]:
         fetch_res = requests.get(
             "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
             params={"db": "pubmed", "id": ",".join(pmids), "retmode": "xml"},
-            timeout=10
+            timeout=10,
         )
         data = xmltodict.parse(fetch_res.text)
         articles = data.get("PubmedArticleSet", {}).get("PubmedArticle", [])
@@ -135,7 +142,11 @@ def search_pubmed(query: str, limit: int = 5) -> list[dict]:
                     abstract = abstract_obj or ""
 
                 doi = ""
-                id_list = article.get("PubmedData", {}).get("ArticleIdList", {}).get("ArticleId", [])
+                id_list = (
+                    article.get("PubmedData", {})
+                    .get("ArticleIdList", {})
+                    .get("ArticleId", [])
+                )
                 if isinstance(id_list, dict):
                     id_list = [id_list]
                 for id_item in id_list:
@@ -145,13 +156,15 @@ def search_pubmed(query: str, limit: int = 5) -> list[dict]:
                 year = medline.get("DateCompleted", {}).get("Year", "")
 
                 if abstract:
-                    papers.append({
-                        "title": title,
-                        "abstract": abstract,
-                        "year": year,
-                        "doi": doi,
-                        "source": "PubMed"
-                    })
+                    papers.append(
+                        {
+                            "title": title,
+                            "abstract": abstract,
+                            "year": year,
+                            "doi": doi,
+                            "source": "PubMed",
+                        }
+                    )
             except Exception:
                 continue
 
@@ -164,10 +177,11 @@ def search_pubmed(query: str, limit: int = 5) -> list[dict]:
 
 # ── Step 3-5: RAG prompt + structured output ─────────────────
 
+
 def generate_risk_flags(
     experiment_description: str,
     onboarding_context: str = "",
-    previous_risk_items: list = None
+    previous_risk_items: list = None,
 ) -> dict:
     print("[risk_flag] extracting search queries...")
     queries = extract_search_queries(experiment_description)
@@ -191,14 +205,18 @@ def generate_risk_flags(
     print(f"[risk_flag] retrieved {len(papers)} unique papers")
 
     if not papers:
-        return {"risk_items": [], "papers_retrieved": 0, "warning": "No papers retrieved — check API connectivity"}
+        return {
+            "risk_items": [],
+            "papers_retrieved": 0,
+            "warning": "No papers retrieved — check API connectivity",
+        }
 
     literature_context = ""
     for i, p in enumerate(papers):
         literature_context += f"""
-[{i+1}] {p['title']} ({p['year']}) — {p['source']}
-DOI: {p['doi'] or 'N/A'}
-Abstract: {p['abstract'][:600]}
+[{i + 1}] {p["title"]} ({p["year"]}) — {p["source"]}
+DOI: {p["doi"] or "N/A"}
+Abstract: {p["abstract"][:600]}
 """
 
     # Build onboarding context section
@@ -263,7 +281,7 @@ Return ONLY a JSON array (no markdown, no explanation):
     response = get_deepseek().chat.completions.create(
         model="deepseek-chat",
         max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{"role": "user", "content": prompt}],
     )
 
     raw = (response.choices[0].message.content or "").strip()
@@ -272,7 +290,7 @@ Return ONLY a JSON array (no markdown, no explanation):
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
-    match = re.search(r'\[.*\]', raw, re.DOTALL)
+    match = re.search(r"\[.*\]", raw, re.DOTALL)
     if match:
         risk_items = json.loads(match.group())
     else:
@@ -281,24 +299,24 @@ Return ONLY a JSON array (no markdown, no explanation):
     for item in risk_items:
         item["sources"] = [
             {
-                "title": papers[i-1]["title"],
-                "year": papers[i-1]["year"],
-                "doi": papers[i-1]["doi"],
-                "url": f"https://doi.org/{papers[i-1]['doi']}" if papers[i-1]["doi"] else None,
-                "source": papers[i-1]["source"]
+                "title": papers[i - 1]["title"],
+                "year": papers[i - 1]["year"],
+                "doi": papers[i - 1]["doi"],
+                "url": f"https://doi.org/{papers[i - 1]['doi']}"
+                if papers[i - 1]["doi"]
+                else None,
+                "source": papers[i - 1]["source"],
             }
             for i in item.get("citation_indices", [])
             if 0 < i <= len(papers)
         ]
         del item["citation_indices"]
 
-    return {
-        "risk_items": risk_items,
-        "papers_retrieved": len(papers)
-    }
+    return {"risk_items": risk_items, "papers_retrieved": len(papers)}
 
 
 # ── Endpoints ─────────────────────────────────────────────────
+
 
 class RiskFlagRequest(BaseModel):
     experiment_description: str
@@ -316,28 +334,35 @@ async def analyze_experiment_design(req: RiskFlagRequest):
             lambda: generate_risk_flags(
                 req.experiment_description,
                 req.onboarding_context,
-                req.previous_risk_items
-            )
+                req.previous_risk_items,
+            ),
         )
 
         if req.experiment_id and result["risk_items"]:
             from supabase import create_client
-            sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
-            sb.table("experiments").update({
-                "design_feedback": json.dumps(result["risk_items"])
-            }).eq("id", req.experiment_id).execute()
+
+            sb = create_client(
+                os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY")
+            )
+            sb.table("experiments").update(
+                {"design_feedback": json.dumps(result["risk_items"])}
+            ).eq("id", req.experiment_id).execute()
 
         return result
 
     except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"DeepSeek returned invalid JSON: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"DeepSeek returned invalid JSON: {str(e)}"
+        )
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Risk flag error: {str(e)}")
 
 
 # ── Text extraction (for supplementary files) ────────────────
+
 
 @router.post("/extract-text")
 async def extract_text(file: UploadFile = File(...)):
@@ -349,22 +374,31 @@ async def extract_text(file: UploadFile = File(...)):
             text = content.decode("utf-8", errors="ignore")
         elif file.filename.endswith(".pdf"):
             import io
+
             try:
-                import pypdf
-                reader = pypdf.PdfReader(io.BytesIO(content))
-                text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                import fitz
+
+                doc = fitz.open(stream=io.BytesIO(content), filetype="pdf")
+                text = "\n".join(page.get_text() for page in doc)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"PDF read error: {str(e)}")
         elif file.filename.endswith(".docx"):
             import io
+
             try:
                 from docx import Document as DocxDocument
+
                 doc = DocxDocument(io.BytesIO(content))
                 text = "\n".join(p.text for p in doc.paragraphs)
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"DOCX read error: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"DOCX read error: {str(e)}"
+                )
         else:
-            raise HTTPException(status_code=400, detail="Unsupported file type. Use .txt, .pdf, or .docx")
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported file type. Use .txt, .pdf, or .docx",
+            )
 
         return {"text": text.strip()}
 
@@ -375,6 +409,7 @@ async def extract_text(file: UploadFile = File(...)):
 
 
 # ── Risk chat ────────────────────────────────────────────────
+
 
 class RiskChatRequest(BaseModel):
     message: str
@@ -413,15 +448,10 @@ For Q&A: {{"type": "answer", "content": "your response"}}
 For edits: {{"type": "protocol_update", "updated_protocol": "full updated protocol text", "content": "what you changed and why"}}
 """
 
-        messages = req.conversation_history + [
-            {"role": "user", "content": req.message}
-        ]
+        messages = req.conversation_history + [{"role": "user", "content": req.message}]
 
         response = get_anthropic().messages.create(
-            model="claude-opus-4-5",
-            max_tokens=1000,
-            system=system,
-            messages=messages
+            model="claude-opus-4-5", max_tokens=1000, system=system, messages=messages
         )
 
         raw = response.content[0].text.strip()
@@ -432,22 +462,30 @@ For edits: {{"type": "protocol_update", "updated_protocol": "full updated protoc
 
         if result["type"] == "protocol_update" and req.experiment_id:
             from supabase import create_client
-            sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
-            sb.table("experiments").update({
-                "design_text": result["updated_protocol"]
-            }).eq("id", req.experiment_id).execute()
+
+            sb = create_client(
+                os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY")
+            )
+            sb.table("experiments").update(
+                {"design_text": result["updated_protocol"]}
+            ).eq("id", req.experiment_id).execute()
 
         return result
 
     except json.JSONDecodeError:
-        return {"type": "answer", "content": "Sorry, I couldn't process that. Please try again."}
+        return {
+            "type": "answer",
+            "content": "Sorry, I couldn't process that. Please try again.",
+        }
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Risk chat error: {str(e)}")
 
 
 # ── Risk report PDF export ───────────────────────────────────
+
 
 class RiskExportRequest(BaseModel):
     experiment_description: str
@@ -460,23 +498,46 @@ async def export_risk_pdf(req: RiskExportRequest):
         from reportlab.lib.pagesizes import letter
         from reportlab.lib import colors
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.platypus import (
+            SimpleDocTemplate,
+            Paragraph,
+            Spacer,
+            Table,
+            TableStyle,
+        )
         import datetime
 
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        doc = SimpleDocTemplate(tmp.name, pagesize=letter, topMargin=40, bottomMargin=40)
+        doc = SimpleDocTemplate(
+            tmp.name, pagesize=letter, topMargin=40, bottomMargin=40
+        )
         styles = getSampleStyleSheet()
         story = []
 
-        title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=20, spaceAfter=4)
+        title_style = ParagraphStyle(
+            "title", parent=styles["Heading1"], fontSize=20, spaceAfter=4
+        )
         story.append(Paragraph("Risk Analysis Report", title_style))
 
-        meta_style = ParagraphStyle("meta", parent=styles["Normal"], fontSize=10, textColor=colors.gray, spaceAfter=16)
-        story.append(Paragraph(f"Generated: {datetime.datetime.now().strftime('%B %d, %Y')}", meta_style))
+        meta_style = ParagraphStyle(
+            "meta",
+            parent=styles["Normal"],
+            fontSize=10,
+            textColor=colors.gray,
+            spaceAfter=16,
+        )
+        story.append(
+            Paragraph(
+                f"Generated: {datetime.datetime.now().strftime('%B %d, %Y')}",
+                meta_style,
+            )
+        )
         story.append(Spacer(1, 8))
 
         story.append(Paragraph("Protocol Summary", styles["Heading2"]))
-        body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=10, spaceAfter=12)
+        body_style = ParagraphStyle(
+            "body", parent=styles["Normal"], fontSize=10, spaceAfter=12
+        )
         story.append(Paragraph(req.experiment_description[:1000], body_style))
         story.append(Spacer(1, 16))
 
@@ -500,52 +561,85 @@ async def export_risk_pdf(req: RiskExportRequest):
             color = severity_colors.get(severity, colors.gray)
 
             severity_style = ParagraphStyle(
-                "sev", parent=styles["Normal"], fontSize=9,
-                fontName="Helvetica-Bold", textColor=color, spaceAfter=2
+                "sev",
+                parent=styles["Normal"],
+                fontSize=9,
+                fontName="Helvetica-Bold",
+                textColor=color,
+                spaceAfter=2,
             )
             story.append(Paragraph(severity_labels.get(severity, ""), severity_style))
 
             risk_style = ParagraphStyle(
-                "risk", parent=styles["Normal"], fontSize=11,
-                fontName="Helvetica-Bold", spaceAfter=4
+                "risk",
+                parent=styles["Normal"],
+                fontSize=11,
+                fontName="Helvetica-Bold",
+                spaceAfter=4,
             )
-            story.append(Paragraph(f"{i+1}. {item['risk']}", risk_style))
+            story.append(Paragraph(f"{i + 1}. {item['risk']}", risk_style))
             story.append(Paragraph(item.get("explanation", ""), body_style))
 
-            suggestion_data = [[
-                Paragraph("Suggestion", ParagraphStyle("sh", parent=styles["Normal"],
-                          fontSize=9, fontName="Helvetica-Bold")),
-                Paragraph(item.get("suggestion", ""), ParagraphStyle("sb", parent=styles["Normal"], fontSize=9))
-            ]]
+            suggestion_data = [
+                [
+                    Paragraph(
+                        "Suggestion",
+                        ParagraphStyle(
+                            "sh",
+                            parent=styles["Normal"],
+                            fontSize=9,
+                            fontName="Helvetica-Bold",
+                        ),
+                    ),
+                    Paragraph(
+                        item.get("suggestion", ""),
+                        ParagraphStyle("sb", parent=styles["Normal"], fontSize=9),
+                    ),
+                ]
+            ]
             suggestion_table = Table(suggestion_data, colWidths=[80, 380])
-            suggestion_table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9fafb")),
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-            ]))
+            suggestion_table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9fafb")),
+                        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 8),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ]
+                )
+            )
             story.append(suggestion_table)
             story.append(Spacer(1, 8))
 
             sources = item.get("sources", [])
             if sources:
-                source_style = ParagraphStyle("src", parent=styles["Normal"],
-                                               fontSize=8, textColor=colors.gray, spaceAfter=4)
+                source_style = ParagraphStyle(
+                    "src",
+                    parent=styles["Normal"],
+                    fontSize=8,
+                    textColor=colors.gray,
+                    spaceAfter=4,
+                )
                 story.append(Paragraph("Sources:", source_style))
                 for s in sources:
                     doi_text = f" · doi.org/{s['doi']}" if s.get("doi") else ""
-                    story.append(Paragraph(
-                        f"• {s.get('title', '')} ({s.get('year', '')}){doi_text}",
-                        source_style
-                    ))
+                    story.append(
+                        Paragraph(
+                            f"• {s.get('title', '')} ({s.get('year', '')}){doi_text}",
+                            source_style,
+                        )
+                    )
 
             story.append(Spacer(1, 20))
 
         doc.build(story)
-        return FileResponse(tmp.name, media_type="application/pdf", filename="risk_analysis_report.pdf")
+        return FileResponse(
+            tmp.name, media_type="application/pdf", filename="risk_analysis_report.pdf"
+        )
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"PDF export error: {str(e)}")
