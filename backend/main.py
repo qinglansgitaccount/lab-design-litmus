@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from routers import transcribe, agent, export, risk_flag, app_chat
+import os
 
 load_dotenv(override=False)
 
@@ -20,13 +21,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(transcribe.router, prefix="/api")
-app.include_router(agent.router, prefix="/api")
-app.include_router(export.router, prefix="/api")
-app.include_router(risk_flag.router, prefix="/api")
-app.include_router(app_chat.router, prefix="/api")
+app.include_router(transcribe.router)
+app.include_router(agent.router)
+app.include_router(export.router)
+app.include_router(risk_flag.router)
+app.include_router(app_chat.router)
 
-
-@app.get("/api/health")
+@app.get("/health")
 def health():
     return {"status": "ok"}
