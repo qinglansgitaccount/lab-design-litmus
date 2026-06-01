@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -122,6 +123,9 @@ export default function AppPage() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`).catch(() => {});
+  }, []);
 
   // ── File handling ─────────────────────────────────────────────
 
@@ -335,14 +339,15 @@ export default function AppPage() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: "#F7F6F2", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Header */}
-      <header className="border-b border-gray-100 px-6 py-3 flex items-center justify-between shrink-0">
+      <header className="px-6 py-3 flex items-center justify-between shrink-0" style={{ background: "#1a1a1a", borderBottom: "1px solid #2d2d2d" }}>
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/")}
-            className="font-mono text-xs text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-1.5 transition-opacity hover:opacity-70"
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#888", letterSpacing: "0.06em" }}
           >
             ← Home
           </button>
@@ -356,16 +361,17 @@ export default function AppPage() {
                 setTextInput("");
                 setDismissedRisks(new Set());
               }}
-              className="font-mono text-xs text-gray-400 hover:text-gray-700 transition-colors"
+              className="transition-opacity hover:opacity-70"
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#888", letterSpacing: "0.06em" }}
             >
               ← New analysis
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 rounded-full border-2 border-gray-900" />
-          <span className="font-mono text-xs font-medium tracking-widest uppercase text-gray-900">
+        <div className="flex items-center gap-2.5">
+          <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "#c8f0a0" }} />
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: "#c8f0a0", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             Lab Design Litmus
           </span>
         </div>
@@ -374,32 +380,33 @@ export default function AppPage() {
           {phase === "results" && (
             <button
               onClick={handleExportPDF}
-              className="font-mono text-xs px-3 py-1.5 bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+              className="transition-all hover:opacity-80"
+              style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#1a1a1a", background: "#c8f0a0", padding: "5px 12px", letterSpacing: "0.04em" }}
             >
               Export PDF
             </button>
           )}
-          <span className="font-mono text-xs text-gray-400 tracking-wider">
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#666", letterSpacing: "0.06em" }}>
             {phase === "input" && "Protocol upload"}
-            {phase === "analyzing" && "Analyzing..."}
+            {phase === "analyzing" && "Searching literature..."}
             {phase === "results" && `${visibleRisks.length} flags · ${papersRetrieved} papers`}
           </span>
         </div>
       </header>
 
       {/* Two-panel body */}
-      <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 53px)" }}>
+      <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 49px)" }}>
 
         {/* ── LEFT PANEL ── */}
-        <div className="flex-1 overflow-y-auto border-r border-gray-100 p-8">
-          <div className="max-w-xl mx-auto flex flex-col gap-6">
+        <div className="w-1/2 overflow-y-auto p-8" style={{ borderRight: "1px solid #e8e6e0" }}>
+          <div className="max-w-lg mx-auto flex flex-col gap-6">
 
             {/* Section heading */}
-            <div className="border-b border-gray-100 pb-6">
-              <p className="font-mono text-xs text-gray-400 tracking-widest uppercase mb-2">
+            <div className="pb-6" style={{ borderBottom: "1px solid #e8e6e0" }}>
+              <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "#a8a49e", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>
                 {phase === "input" ? "01 · Upload" : phase === "analyzing" ? "Analyzing" : "Results"}
               </p>
-              <h1 className="text-2xl font-light text-gray-900 tracking-tight">
+              <h1 style={{ fontSize: 26, fontWeight: 300, color: "#1a1a1a", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
                 {phase === "input" && "Your experiment protocol"}
                 {phase === "analyzing" && "Searching literature..."}
                 {phase === "results" && "Risk Analysis"}
@@ -410,20 +417,26 @@ export default function AppPage() {
             {phase === "input" && (
               <>
                 {/* Input mode toggle */}
-                <div className="flex border border-gray-200">
+                <div className="flex" style={{ border: "1px solid #e0ddd8", borderRadius: 2 }}>
                   <button
                     onClick={() => setInputMode("file")}
-                    className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                      inputMode === "file" ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"
-                    }`}
+                    style={{
+                      flex: 1, padding: "9px 0", fontSize: 13, fontWeight: 500, transition: "all 0.15s",
+                      background: inputMode === "file" ? "#1a1a1a" : "transparent",
+                      color: inputMode === "file" ? "white" : "#888",
+                      border: "none", cursor: "pointer"
+                    }}
                   >
                     Upload file
                   </button>
                   <button
                     onClick={() => setInputMode("text")}
-                    className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                      inputMode === "text" ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-50"
-                    }`}
+                    style={{
+                      flex: 1, padding: "9px 0", fontSize: 13, fontWeight: 500, transition: "all 0.15s",
+                      background: inputMode === "text" ? "#1a1a1a" : "transparent",
+                      color: inputMode === "text" ? "white" : "#888",
+                      border: "none", cursor: "pointer"
+                    }}
                   >
                     Paste text
                   </button>
@@ -433,20 +446,27 @@ export default function AppPage() {
                 {inputMode === "file" && (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border border-dashed border-gray-300 p-10 text-center cursor-pointer hover:border-gray-500 hover:bg-gray-50 transition-all"
+                    style={{
+                      border: "1.5px dashed #d0cdc8", padding: "44px 24px", textAlign: "center",
+                      cursor: "pointer", background: "#faf9f7", transition: "all 0.2s",
+                      borderRadius: 3,
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#888"; (e.currentTarget as HTMLElement).style.background = "#f4f3f0"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#d0cdc8"; (e.currentTarget as HTMLElement).style.background = "#faf9f7"; }}
                   >
                     {extracting ? (
-                      <p className="font-mono text-xs text-gray-400 tracking-wider">Reading file...</p>
+                      <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#888", letterSpacing: "0.08em" }}>Reading file...</p>
                     ) : file ? (
-                      <div className="flex flex-col gap-1">
-                        <p className="font-mono text-xs text-green-600 tracking-wider">✓ {file.name}</p>
-                        <p className="text-xs text-gray-400">Click to replace</p>
+                      <div>
+                        <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#5a9a5a", letterSpacing: "0.08em", marginBottom: 4 }}>✓ {file.name}</p>
+                        <p style={{ fontSize: 12, color: "#aaa" }}>Click to replace</p>
                       </div>
                     ) : (
-                      <>
-                        <p className="font-mono text-xs text-gray-400 tracking-widest uppercase mb-1">Click to upload protocol</p>
-                        <p className="text-xs text-gray-400">PDF · DOCX · TXT</p>
-                      </>
+                      <div>
+                        <div style={{ fontSize: 28, marginBottom: 12 }}>📄</div>
+                        <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Click to upload protocol</p>
+                        <p style={{ fontSize: 12, color: "#bbb", letterSpacing: "0.04em" }}>PDF · DOCX · TXT</p>
+                      </div>
                     )}
                     <input ref={fileInputRef} type="file" accept=".txt,.pdf,.docx" onChange={handleFileSelect} className="hidden" />
                   </div>
@@ -458,52 +478,63 @@ export default function AppPage() {
                     value={textInput}
                     onChange={e => setTextInput(e.target.value)}
                     placeholder="Paste your protocol or describe your experiment here..."
-                    className="w-full border border-gray-200 p-4 text-sm font-light text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gray-400 resize-none"
+                    style={{
+                      width: "100%", border: "1px solid #e0ddd8", padding: "14px 16px",
+                      fontSize: 13, fontWeight: 300, color: "#1a1a1a", background: "#faf9f7",
+                      outline: "none", resize: "none", borderRadius: 2, lineHeight: 1.6,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
                     rows={8}
                   />
                 )}
 
                 {/* ── SUPPORTING MATERIALS ── */}
-                <div className="border border-gray-200 rounded-none overflow-hidden">
-                  {/* Header */}
-                  <div className="bg-gray-900 px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                      <p className="text-white text-sm font-medium">Add supporting materials</p>
-                      <span className="font-mono text-xs text-gray-400 ml-auto">optional</span>
+                <div style={{ border: "1px solid #e0ddd8", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ background: "#1a1a1a", padding: "14px 18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#c8f0a0" }} />
+                      <p style={{ color: "white", fontSize: 13, fontWeight: 500, margin: 0 }}>Add supporting materials</p>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "#666", marginLeft: "auto", letterSpacing: "0.06em" }}>optional</span>
                     </div>
-                    <p className="text-gray-400 text-xs font-light mt-1.5 pl-4">
+                    <p style={{ color: "#888", fontSize: 11, fontWeight: 300, marginTop: 6, paddingLeft: 17, letterSpacing: "0.02em" }}>
                       The more context you provide, the more specific the risk flags.
                     </p>
                   </div>
-
-                  {/* Upload rows */}
-                  <div className="divide-y divide-gray-100">
-                    {SUPPLEMENTARY_TYPES.map(type => {
+                  <div style={{ background: "white" }}>
+                    {SUPPLEMENTARY_TYPES.map((type, idx) => {
                       const uploaded = !!supplementaryFiles[type.key];
                       return (
-                        <div key={type.key} className={`px-5 py-4 flex items-start gap-4 transition-colors ${uploaded ? "bg-green-50" : "hover:bg-gray-50"}`}>
-                          <span className="text-lg shrink-0 mt-0.5">{type.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-gray-800 font-medium">{type.label}</p>
-                            <p className="text-xs text-gray-400 font-light mt-0.5">{type.hint}</p>
+                        <div
+                          key={type.key}
+                          style={{
+                            padding: "14px 18px", display: "flex", alignItems: "center", gap: 14,
+                            borderTop: idx > 0 ? "1px solid #f0ede8" : "none",
+                            background: uploaded ? "#f0faf0" : "white",
+                            transition: "background 0.15s",
+                          }}
+                        >
+                          <span style={{ fontSize: 18, flexShrink: 0 }}>{type.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, color: "#1a1a1a", fontWeight: 500, margin: 0 }}>{type.label}</p>
+                            <p style={{ fontSize: 11, color: "#aaa", fontWeight: 300, marginTop: 2 }}>{type.hint}</p>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {uploaded && <span className="font-mono text-xs text-green-600">✓</span>}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            {uploaded && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#5a9a5a" }}>✓</span>}
                             <button
                               onClick={() => supFileRefs.current[type.key]?.click()}
-                              className={`font-mono text-xs px-3 py-1.5 border transition-colors ${
-                                uploaded
-                                  ? "border-green-300 text-green-700 hover:bg-green-100"
-                                  : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
-                              }`}
+                              style={{
+                                fontFamily: "'DM Mono', monospace", fontSize: 11, padding: "5px 12px",
+                                border: uploaded ? "1px solid #a0d8a0" : "1px solid #e0ddd8",
+                                color: uploaded ? "#5a9a5a" : "#888",
+                                background: "transparent", cursor: "pointer", letterSpacing: "0.04em",
+                                transition: "all 0.15s",
+                              }}
                             >
                               {uploaded ? "Replace" : "Upload"}
                             </button>
                             <input
                               ref={el => { supFileRefs.current[type.key] = el; }}
-                              type="file"
-                              accept=".txt,.pdf,.docx"
+                              type="file" accept=".txt,.pdf,.docx"
                               onChange={e => handleSupplementaryFile(type.key, e)}
                               className="hidden"
                             />
@@ -518,16 +549,22 @@ export default function AppPage() {
                 <button
                   onClick={runAnalysis}
                   disabled={!hasInput}
-                  className="w-full py-4 flex items-center justify-center gap-3 bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all active:scale-[0.99] shadow-sm"
+                  style={{
+                    width: "100%", padding: "15px 0", display: "flex", alignItems: "center",
+                    justifyContent: "center", gap: 10, fontSize: 14, fontWeight: 500,
+                    background: hasInput ? "#1a1a1a" : "#e8e6e0", color: hasInput ? "white" : "#aaa",
+                    border: "none", cursor: hasInput ? "pointer" : "not-allowed",
+                    transition: "all 0.2s", letterSpacing: "0.02em", borderRadius: 2,
+                    boxShadow: hasInput ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+                  }}
                 >
                   {hasInput ? (
                     <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="m21 21-4.35-4.35"/>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                       </svg>
                       Analyze risks from literature
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                         <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </>
@@ -540,16 +577,13 @@ export default function AppPage() {
 
             {/* ── ANALYZING STATE ── */}
             {phase === "analyzing" && (
-              <div className="flex flex-col items-center gap-6 py-16">
-                <div className="w-8 h-8 border-2 border-gray-900 border-t-transparent rounded-full animate-spin" />
-                <div className="text-center">
-                  <p className="font-mono text-xs text-gray-400 tracking-widest uppercase">
-                    {statusText}
-                  </p>
-                  <p className="text-sm text-gray-400 font-light mt-2">
-                    Typically 20–40 seconds
-                  </p>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "64px 0" }}>
+                <div style={{ width: 36, height: 36, border: "2px solid #1a1a1a", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#888", letterSpacing: "0.12em", textTransform: "uppercase" }}>{statusText}</p>
+                  <p style={{ fontSize: 13, color: "#aaa", fontWeight: 300, marginTop: 8 }}>Typically 20–40 seconds</p>
                 </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); }}`}</style>
               </div>
             )}
 
@@ -557,58 +591,73 @@ export default function AppPage() {
             {phase === "results" && (
               <>
                 {/* Severity summary */}
-                <div className="flex gap-4">
+                <div style={{ display: "flex", gap: 16 }}>
                   {["high", "medium", "suggestion"].map(sev => {
                     const count = visibleRisks.filter(r => r.severity === sev).length;
                     if (!count) return null;
-                    const cfg = SEVERITY_CONFIG[sev as keyof typeof SEVERITY_CONFIG];
+                    const dotColors: Record<string, string> = { high: "#ef4444", medium: "#f59e0b", suggestion: "#9ca3af" };
                     return (
-                      <span key={sev} className="flex items-center gap-1.5 font-mono text-xs text-gray-600">
-                        <span className={`w-2 h-2 rounded-full ${cfg.dot} inline-block`} />
-                        {count} {cfg.label.toLowerCase()}
+                      <span key={sev} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'DM Mono', monospace", fontSize: 11, color: "#666" }}>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColors[sev], display: "inline-block" }} />
+                        {count} {sev}
                       </span>
                     );
                   })}
                 </div>
 
                 {/* Risk cards */}
-                <div className="flex flex-col gap-3">
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {riskItems.map((item, i) => {
                     if (dismissedRisks.has(i)) return null;
-                    const cfg = SEVERITY_CONFIG[item.severity] || SEVERITY_CONFIG.suggestion;
+                    const borderColors: Record<string, string> = { high: "#f87171", medium: "#fbbf24", suggestion: "#d1d5db" };
+                    const bgColors: Record<string, string> = { high: "#fef2f2", medium: "#fffbeb", suggestion: "#f9fafb" };
+                    const badgeBg: Record<string, string> = { high: "#fee2e2", medium: "#fef3c7", suggestion: "#f3f4f6" };
+                    const badgeColor: Record<string, string> = { high: "#dc2626", medium: "#d97706", suggestion: "#6b7280" };
+                    const titleColor: Record<string, string> = { high: "#991b1b", medium: "#92400e", suggestion: "#374151" };
+                    const sev = item.severity || "suggestion";
                     return (
-                      <div key={i} className={`border-l-4 ${cfg.borderColor} ${cfg.bg} p-4 flex flex-col gap-2`}>
-                        <div className="flex justify-between items-start">
-                          <div className="flex flex-col gap-1">
-                            <span className={`font-mono text-xs px-2 py-0.5 self-start ${cfg.badge}`}>
-                              {cfg.label}
+                      <div key={i} style={{
+                        borderLeft: `4px solid ${borderColors[sev]}`,
+                        background: bgColors[sev],
+                        padding: "14px 16px",
+                        display: "flex", flexDirection: "column", gap: 8,
+                        borderRadius: "0 3px 3px 0",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <span style={{
+                              fontFamily: "'DM Mono', monospace", fontSize: 10, padding: "2px 8px",
+                              background: badgeBg[sev], color: badgeColor[sev],
+                              letterSpacing: "0.08em", textTransform: "uppercase", alignSelf: "flex-start",
+                            }}>
+                              {item.severity}
                             </span>
-                            <p className={`font-medium text-sm ${cfg.titleColor}`}>{item.risk}</p>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: titleColor[sev], margin: 0 }}>{item.risk}</p>
                           </div>
                           <button
                             onClick={() => setDismissedRisks(prev => new Set([...prev, i]))}
-                            className="font-mono text-xs text-gray-400 hover:text-gray-600 ml-4 shrink-0"
+                            style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "#aaa", background: "none", border: "none", cursor: "pointer", marginLeft: 12, flexShrink: 0 }}
                           >
                             Dismiss
                           </button>
                         </div>
-                        <p className="text-sm font-light text-gray-700">{item.explanation}</p>
-                        <div className="border border-gray-200 bg-white px-3 py-2">
-                          <p className="font-mono text-xs text-gray-400 uppercase tracking-wider mb-1">Suggestion</p>
-                          <p className="text-sm text-gray-700 font-light">{item.suggestion}</p>
+                        <p style={{ fontSize: 13, fontWeight: 300, color: "#374151", lineHeight: 1.55, margin: 0 }}>{item.explanation}</p>
+                        <div style={{ border: "1px solid #e5e7eb", background: "white", padding: "10px 12px", borderRadius: 2 }}>
+                          <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Suggestion</p>
+                          <p style={{ fontSize: 13, fontWeight: 300, color: "#374151", margin: 0, lineHeight: 1.55 }}>{item.suggestion}</p>
                         </div>
                         {item.sources.length > 0 && (
-                          <div className="flex flex-col gap-1">
-                            <p className="font-mono text-xs text-gray-400 uppercase tracking-wider">Sources</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: "#aaa", letterSpacing: "0.1em", textTransform: "uppercase", margin: 0 }}>Sources</p>
                             {item.sources.map((s, j) => (
-                              <div key={j} className="flex items-start gap-1.5">
-                                <span className="font-mono text-xs text-gray-400">[{j + 1}]</span>
+                              <div key={j} style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "#aaa" }}>[{j+1}]</span>
                                 {s.url ? (
-                                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                                  <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#2563eb", textDecoration: "none" }}>
                                     {s.title} ({s.year}) ↗
                                   </a>
                                 ) : (
-                                  <p className="text-xs text-gray-500">{s.title} ({s.year})</p>
+                                  <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>{s.title} ({s.year})</p>
                                 )}
                               </div>
                             ))}
@@ -617,32 +666,24 @@ export default function AppPage() {
                       </div>
                     );
                   })}
-
                   {visibleRisks.length === 0 && (
-                    <div className="border border-green-100 bg-green-50 p-4">
-                      <p className="text-sm text-green-700 font-light">✓ No significant risks flagged.</p>
+                    <div style={{ border: "1px solid #bbf7d0", background: "#f0fdf4", padding: 16, borderRadius: 3 }}>
+                      <p style={{ fontSize: 13, color: "#15803d", fontWeight: 300, margin: 0 }}>✓ No significant risks flagged.</p>
                     </div>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 border-t border-gray-100 pt-4">
+                <div style={{ display: "flex", gap: 10, borderTop: "1px solid #e8e6e0", paddingTop: 16 }}>
                   <button
-                    onClick={() => {
-                      setPhase("input");
-                      setRiskItems([]);
-                      setFile(null);
-                      setExtractedText("");
-                      setTextInput("");
-                      setDismissedRisks(new Set());
-                    }}
-                    className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors"
+                    onClick={() => { setPhase("input"); setRiskItems([]); setFile(null); setExtractedText(""); setTextInput(""); setDismissedRisks(new Set()); }}
+                    style={{ flex: 1, padding: "10px 0", border: "1px solid #e0ddd8", color: "#555", fontSize: 13, background: "white", cursor: "pointer", transition: "background 0.15s", borderRadius: 2 }}
                   >
                     New analysis
                   </button>
                   <button
                     onClick={handleExportPDF}
-                    className="flex-1 py-2.5 bg-gray-900 text-white text-sm hover:bg-gray-700 transition-colors"
+                    style={{ flex: 1, padding: "10px 0", background: "#1a1a1a", color: "white", fontSize: 13, border: "none", cursor: "pointer", transition: "background 0.15s", borderRadius: 2 }}
                   >
                     Export PDF
                   </button>
@@ -654,15 +695,15 @@ export default function AppPage() {
         </div>
 
         {/* ── RIGHT PANEL — CHAT ── */}
-        <div className="w-96 shrink-0 flex flex-col bg-white border-l border-gray-100">
+        <div className="w-1/2 shrink-0 flex flex-col" style={{ background: "#F2F0EC", borderLeft: "1px solid #e0ddd8" }}>
 
           {/* Chat header */}
-          <div className="border-b border-gray-200 px-5 py-4 shrink-0 bg-white">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <p className="text-sm font-medium text-gray-900">Your personal lab design assistant</p>
+          <div style={{ background: "#1a1a1a", padding: "14px 20px", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#c8f0a0", animation: "pulse 2s infinite" }} />
+              <p style={{ color: "white", fontSize: 14, fontWeight: 500, margin: 0 }}>Your personal lab design assistant</p>
             </div>
-            <p className="text-xs text-gray-400 font-light pl-4">
+            <p style={{ color: "#888", fontSize: 11, fontWeight: 300, margin: 0, paddingLeft: 15, letterSpacing: "0.02em" }}>
               {phase === "results"
                 ? "Ask about any risk flag, or request protocol changes by voice or text"
                 : "Tell me about your experiment to improve the analysis — or skip and click Analyze"}
@@ -670,23 +711,34 @@ export default function AppPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+          <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-xs text-sm px-3 py-2.5 ${
-                  msg.role === "user"
-                    ? "bg-gray-900 text-white"
-                    : "bg-white text-gray-700 border border-gray-200"
-                }`}
-                  style={{ whiteSpace: "pre-wrap" }}
-                >
-                  {msg.content}
+              <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "78%", fontSize: 13, padding: "10px 14px", lineHeight: 1.55,
+                  borderRadius: 3,
+                  background: msg.role === "user" ? "#1a1a1a" : "white",
+                  color: msg.role === "user" ? "white" : "#374151",
+                  border: msg.role === "user" ? "none" : "1px solid #e8e6e0",
+                  boxShadow: msg.role === "assistant" ? "0 1px 3px rgba(0,0,0,0.04)" : "none",
+                }}>
+                  <ReactMarkdown
+                    components={{
+                      p: ({children}) => <p style={{ margin: "0 0 8px 0" }}>{children}</p>,
+                      strong: ({children}) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                      ul: ({children}) => <ul style={{ margin: "4px 0", paddingLeft: 16 }}>{children}</ul>,
+                      ol: ({children}) => <ol style={{ margin: "4px 0", paddingLeft: 16 }}>{children}</ol>,
+                      li: ({children}) => <li style={{ marginBottom: 4 }}>{children}</li>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))}
             {(chatLoading || voiceLoading) && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <div style={{ background: "white", border: "1px solid #e8e6e0", padding: "10px 14px", fontSize: 13, color: "#aaa", borderRadius: 3 }}>
                   {voiceLoading ? "Transcribing..." : "Thinking..."}
                 </div>
               </div>
@@ -695,37 +747,36 @@ export default function AppPage() {
           </div>
 
           {/* Chat input */}
-          <div className="border-t border-gray-200 p-4 shrink-0 bg-white">
+          <div style={{ borderTop: "1px solid #e0ddd8", padding: 16, flexShrink: 0, background: "#eeece8" }}>
 
             {/* Voice button — large, primary */}
             <button
               onClick={toggleRecording}
               disabled={chatLoading || voiceLoading}
-              className={`w-full py-3.5 flex items-center justify-center gap-3 text-sm font-medium transition-all mb-3 ${
-                isRecording
-                  ? "bg-red-500 text-white shadow-lg shadow-red-200 scale-[1.02]"
-                  : voiceLoading
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : chatLoading
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-900 text-white hover:bg-gray-700 active:scale-[0.98]"
-              }`}
-              title={isRecording ? "Click to stop recording" : "Click to speak"}
+              style={{
+                width: "100%", padding: "13px 0", display: "flex", alignItems: "center",
+                justifyContent: "center", gap: 10, fontSize: 13, fontWeight: 500,
+                marginBottom: 10, border: "none", cursor: chatLoading || voiceLoading ? "not-allowed" : "pointer",
+                transition: "all 0.2s", borderRadius: 2,
+                background: isRecording ? "#ef4444" : chatLoading || voiceLoading ? "#d8d6d2" : "#1a1a1a",
+                color: isRecording ? "white" : chatLoading || voiceLoading ? "#aaa" : "white",
+                boxShadow: isRecording ? "0 4px 12px rgba(239,68,68,0.3)" : chatLoading || voiceLoading ? "none" : "0 2px 8px rgba(0,0,0,0.15)",
+              }}
             >
               {isRecording ? (
                 <>
-                  <span className="w-3 h-3 rounded-sm bg-white inline-block" />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: "white", display: "inline-block" }} />
                   Stop recording
-                  <span className="font-mono text-xs opacity-60 ml-1 animate-pulse">●</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, opacity: 0.7 }}>●</span>
                 </>
               ) : voiceLoading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" />
+                  <span style={{ width: 14, height: 14, border: "2px solid #aaa", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
                   Transcribing...
                 </>
               ) : (
                 <>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                     <line x1="12" y1="19" x2="12" y2="23"/>
@@ -737,7 +788,7 @@ export default function AppPage() {
             </button>
 
             {/* Text input row */}
-            <div className="flex gap-2 items-end">
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <textarea
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
@@ -749,14 +800,24 @@ export default function AppPage() {
                 }}
                 placeholder="Or type a message..."
                 disabled={chatLoading || voiceLoading || isRecording}
-                className="flex-1 border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gray-400 resize-none bg-gray-50"
+                style={{
+                  flex: 1, border: "1px solid #d8d6d2", padding: "9px 12px", fontSize: 13,
+                  fontFamily: "'DM Sans', sans-serif", background: "white", outline: "none",
+                  resize: "none", borderRadius: 2, maxHeight: 80, lineHeight: 1.4,
+                  color: "#1a1a1a",
+                }}
                 rows={1}
-                style={{ maxHeight: 80 }}
               />
               <button
                 onClick={() => sendChatMessage(chatInput)}
                 disabled={chatLoading || !chatInput.trim()}
-                className="px-4 py-2 bg-gray-900 text-white text-sm hover:bg-gray-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors shrink-0"
+                style={{
+                  padding: "9px 16px", fontSize: 13, fontWeight: 500,
+                  background: chatInput.trim() ? "#1a1a1a" : "#d8d6d2",
+                  color: chatInput.trim() ? "white" : "#aaa",
+                  border: "none", cursor: chatInput.trim() ? "pointer" : "not-allowed",
+                  flexShrink: 0, borderRadius: 2, transition: "all 0.15s",
+                }}
               >
                 Send
               </button>
